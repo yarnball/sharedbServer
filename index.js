@@ -23,12 +23,11 @@ console.log(`Listening on http://localhost:${PORT}`);
 wss.on('connection', function(ws, req) {
   var stream = new WebSocketJSONStream(ws);
   share.listen(stream);
+  console.log('listening on....')
   share.use('query', (request, done) => {
-      console.log('listening on....', request.collection)
-      done()
+        done()
   })
   share.use('op', (request, done) => {
-        console.log('OP happened', request.collection)
         done()
   })
 });
@@ -49,3 +48,11 @@ connection.createFetchQuery('players', {}, {}, function(err, results) {
     });
   }
 });
+
+  if (process.env.PROJECT_URL) {
+    setInterval(()=> {
+      http.get(process.env.PROJECT_URL)
+      console.log("Ping made")
+    }, process.env.PING_FREQ ? Number(process.env.PING_FREQ) : 30000) // every 5 minutes (300000)
+  // ^ Keeps heroku alive- prevents H15 error
+  }
