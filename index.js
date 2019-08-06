@@ -11,7 +11,11 @@ var share = ShareDB({db: new ShareDBMingoMemory()});
 
 // Create a WebSocket server
 var app = connect();
-var server = http.createServer(app);
+var server = http.createServer((req, res) => {
+  app
+  res.writeHead(200, { 'Content-Type': 'text/plain' })
+  res.end(`Hello server`)
+});
 var wss = new WebSocket.Server({server: server});
 const PORT = process.env.PORT || 8088;
 
