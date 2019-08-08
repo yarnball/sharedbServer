@@ -3,13 +3,14 @@
   "version": "0.0.1",
   "main": "server.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "nodemon index.js"
   },
   "license": "MIT",
   "dependencies": {
     "@teamwork/websocket-json-stream": "^2.0.0",
     "connect": "^3.7.0",
     "express": "^4.17.1",
+    "nodemon": "^1.19.1",
     "sharedb": "^1.0.0-beta.23",
     "sharedb-mingo-memory": "^1.1.0",
     "ws": "^7.1.1"

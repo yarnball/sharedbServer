@@ -14,7 +14,7 @@ var app = connect();
 var server = http.createServer((req, res) => {
   app
   res.writeHead(200, { 'Content-Type': 'text/plain' })
-  res.end(`Hello server`)
+  res.end(`Server homepage`)
 });
 var wss = new WebSocket.Server({server: server});
 const PORT = process.env.PORT || 8088;
@@ -23,11 +23,22 @@ server.listen(PORT);
 
 console.log(`Listening on http://localhost:${PORT}`);
 
+const ACTIVE_SOCKETS =  new Map()
+
+setInterval(() => { 
+  for(const socket of ACTIVE_SOCKETS.values()) {
+    console.log("POING")
+   // This "should" keep socket when in production. 
+   socket.ping(function() {}, false, true)
+  }
+}, 2000)
+
 // Connect any incoming WebSocket connection with ShareDB
 wss.on('connection', function(ws, req) {
+  const token = req.url.split('/')[1]
+  ACTIVE_SOCKETS.set(token, ws)
   var stream = new WebSocketJSONStream(ws);
   share.listen(stream);
-  console.log('listening on....')
   share.use('query', (request, done) => {
         done()
   })
