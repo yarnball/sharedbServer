@@ -5,9 +5,14 @@ var ShareDBMingoMemory = require('sharedb-mingo-memory');
 var WebSocketJSONStream = require('@teamwork/websocket-json-stream');
 var WebSocket = require('ws');
 var util = require('util');
+require('dotenv').config()
+
+let mongo = null
+const PORT = process.env.PORT || 8088;
+process.env.MONGO_URL && (mongo = require('sharedb-mongo')(process.env.MONGO_URL))
 
 // Start ShareDB
-var share = ShareDB({db: new ShareDBMingoMemory()});
+var share = ShareDB({ db: mongo || new ShareDBMingoMemory(), extraDbs: { ping: ()=> null }})
 
 // Create a WebSocket server
 var app = connect();
@@ -16,58 +21,59 @@ var server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' })
   res.end(`Server homepage`)
 });
-var wss = new WebSocket.Server({server: server});
-const PORT = process.env.PORT || 8088;
 
 server.listen(PORT);
 
-console.log(`Listening on http://localhost:${PORT}`);
+var wss = new WebSocket.Server({server: server})
 
-const ACTIVE_SOCKETS =  new Map()
-
-setInterval(() => { 
-  for(const socket of ACTIVE_SOCKETS.values()) {
-    console.log("POING")
-   // This "should" keep socket when in production. 
-   socket.ping(function() {}, false, true)
-  }
-}, 2000)
+wss.on('error', function(e){ 
+  console.log('must handle this error', e)
+})
 
 // Connect any incoming WebSocket connection with ShareDB
 wss.on('connection', function(ws, req) {
-  const token = req.url.split('/')[1]
-  ACTIVE_SOCKETS.set(token, ws)
   var stream = new WebSocketJSONStream(ws);
-  share.listen(stream);
-  share.use('query', (request, done) => {
-        done()
+  stream.on('error', (err) => {
+    // MUST Have this here- otherwise passing the socket anything NON-JSON will kill it (eg a string)!
   })
-  share.use('op', (request, done) => {
-        done()
-  })
+  share.listen(stream)
 });
 
 // Create initial documents
 var connection = share.connect();
-connection.createFetchQuery('players', {}, {}, function(err, results) {
-  if (err) { throw err; }
+var DATA = {
+  'players': ["Ada Lovelace", "Grace Hopper", "Marie Curie", "Carl Friedrich Gauss", "Nikola Tesla", "Claude Shannon"].map((name,score)=> ({ name, score, id:score, created: 0, attch:'' })) 
+}
 
-  if (results.length === 0) {
-    var names = ["Ada Lovelace", "Grace Hopper", "Marie Curie",
-                 "Carl Friedrich Gauss", "Nikola Tesla", "Claude Shannon"];
+Object.entries(DATA).forEach(([collection,data])=>{
+  connection.createFetchQuery(collection, {}, {}, function(err, results) {
+    if (err) { throw err; }
+    if (results.length > 0) { return }
+      data.forEach((itm, inx)=>{
+        var doc = connection.get(collection,''+itm.id) 
+        doc.create(itm)
+      })
+  })
+})
 
-    names.forEach(function(name, index) {
-      var doc = connection.get('players', ''+index);
-      var data = {name: name, score: Math.floor(Math.random() * 10) * 5, created: 0 };
-      doc.create(data);
-    });
-  }
-});
+console.log(`Listening on http://localhost:${PORT}`);
 
-  if (process.env.PROJECT_URL) {
-    setInterval(()=> {
-      http.get(process.env.PROJECT_URL)
-      console.log("Ping made")
-    }, process.env.PING_FREQ ? Number(process.env.PING_FREQ) : 30000) // every 5 minutes (300000)
-  // ^ Keeps heroku alive- prevents H15 error
-  }
+// wss.on('connection') ...
+// ACTIVE_SOCKETS.set(req.url.split('/')[0], ws)
+
+// const ACTIVE_SOCKETS =  new Map()
+
+//   setInterval(() => { 
+//     for(const socket of ACTIVE_SOCKETS.values()) {
+//      // This "should" keep socket when in production. 
+//      console.log('pinga')
+//      socket.ping(function() {}, false, true)
+//     }
+//   }, 1000)
+// if (process.env.PROJECT_URL) {
+//   setInterval(()=> {
+//     http.get(process.env.PROJECT_URL)
+//     console.log("Ping made")
+//   }, process.env.PING_FREQ ? Number(process.env.PING_FREQ) : 10000) // every 5 minutes (300000)
+// // ^ Keeps heroku alive- prevents H15 error
+// }
