@@ -4,7 +4,9 @@ var connect = require("connect");
 var ShareDBMingoMemory = require('sharedb-mingo-memory');
 var WebSocketJSONStream = require('@teamwork/websocket-json-stream');
 var WebSocket = require('ws');
-var util = require('util');
+var richText = require('rich-text')
+ShareDB.types.defaultType.registerSubtype(richText.type);
+
 require('dotenv').config()
 
 let mongo = null
@@ -41,15 +43,25 @@ wss.on('connection', function(ws, req) {
 
 // Create initial documents
 var connection = share.connect();
+var players = ["Ada Lovelace", "Grace Hopper", "Marie Curie", "Carl Friedrich Gauss", "Nikola Tesla", "Claude Shannon"].map((name,score)=> ({ name, score, id:score, created: 0, attch: 'doc'+ score }))
+var playerDocs = players.map(x=>({
+  id:x.attch,
+  rt: {
+    ops: [{
+      insert: x.name
+    }]} 
+}))
+
 var DATA = {
-  'players': ["Ada Lovelace", "Grace Hopper", "Marie Curie", "Carl Friedrich Gauss", "Nikola Tesla", "Claude Shannon"].map((name,score)=> ({ name, score, id:score, created: 0, attch:'' })) 
+  players,
+  playerDocs
 }
 
 Object.entries(DATA).forEach(([collection,data])=>{
   connection.createFetchQuery(collection, {}, {}, function(err, results) {
     if (err) { throw err; }
     if (results.length > 0) { return }
-      data.forEach((itm, inx)=>{
+      data.forEach(itm=>{
         var doc = connection.get(collection,''+itm.id) 
         doc.create(itm)
       })
